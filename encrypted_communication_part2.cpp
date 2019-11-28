@@ -7,6 +7,14 @@
 
 #define ARDUINO_MODE_PIN 13
 
+
+typedef RsaKey struct
+{
+    uint32_t privateKey;
+    uint32_t publicKey;
+    uint32_t modulus;
+};
+
 /**
  * Description:
  * Writes an uint32_t to Serial3, starting from the least - significant bit
@@ -122,6 +130,104 @@ uint32_t powmod(uint32_t base, uint32_t power, uint32_t mod)
     }
 
     return ans;
+}
+
+/**
+ * Description:
+ * Generates a random k-bit number (up to 32 bits)
+ * 
+ * Arguments:
+ * k (uint8_t): How many bits the number should be
+ * 
+ * Returns:
+ * K-bit number (uint32_t): generated k-bit number
+ */
+uint32_t generateNumber(uint8_t k)
+{
+    uint32_t num = 0;
+    for (uint8_t i = 0; i < k; i++)
+    {
+        num |= (analogRead(1) & 1) << i;
+        delay(5);
+    }
+    
+    num += 1 << k;
+}
+
+/**
+ * 
+ */
+bool isPrime(uint32_t num)
+{
+
+    if(num % 2 == 0)
+    {
+        return false;
+    }
+
+    for (uint32_t p = 3; p*p <= num; p += 2)
+    {
+        if (p % num == 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Description:
+ * Find greatest common divisor (GCD) of two numbers
+ * 
+ * Arguments:
+ * a, b (unsigned int): Numbers to find GCD of.
+ * 
+ * Returns:
+ * gcd (unsigned int): GCD of a and b
+ */
+unsigned int gcd(unsigned int a, unsigned int b)
+{
+    while (b > 0)
+    {
+        a = a % b;
+        unsigned int x = a;
+        a = b;
+        b = x;
+    }
+    return a;
+}
+
+/**
+ * Description:
+ * Generates RSA encryption keys and modulus
+ * 
+ * Returns:
+ * RSA info (RsaKey): A struct containing the RSA private and public keys, and modulus
+ */
+RsaKey generateKey()
+{
+    uint32_t p;
+    do
+    {
+        p = generateNumber(14);
+    } while (!isPrime(p));
+
+    uint32_t q;
+    do
+    {
+        q = generateNumber(15);
+    } while (!isPrime(q));
+
+    uint32_t n = p*q;
+
+    uint32_t phi_n = (p - 1)*(q - 1);
+
+    uint32_t e;
+    do
+    {
+        e = generateNumber(15);
+    } while (!gcd(e, phi_n));
 }
 
 /**
