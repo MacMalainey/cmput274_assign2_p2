@@ -49,7 +49,6 @@ uint32_t uint32_from_serial3()
     num = num | ((uint32_t)Serial3.read()) << 16;
     num = num | ((uint32_t)Serial3.read()) << 24;
     return num ;
-
 }
 
 /**
@@ -145,7 +144,7 @@ uint32_t powmod(uint32_t base, uint32_t power, uint32_t mod)
 uint32_t generateNumber(uint8_t k)
 {
     uint32_t num = 0;
-    for (uint8_t i = 0; i < k; i++)
+    for (uint8_t i = 0; i < k - 1; i++)
     {
         num |= ((uint32_t)(analogRead(1) & 1)) << i;
     }
@@ -166,7 +165,7 @@ bool isPrime(uint32_t num)
 
     for (uint32_t p = 3; p*p <= num; p += 2)
     {
-        if (p % num == 0)
+        if (num % p == 0)
         {
             return false;
         }
@@ -187,14 +186,14 @@ bool isPrime(uint32_t num)
  */
 uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
 {
-    int32_t s_pre = 0;
+    int32_t s_pre = 1;
     int32_t s = 0;
 
     int32_t t_pre = 0;
-    int32_t t = 0;
+    int32_t t = 1;
 
-    int32_t r_pre = 0;
-    int32_t r = 0;
+    int32_t r_pre = a;
+    int32_t r = b;
 
     while(r > 0)
     {
@@ -207,7 +206,7 @@ uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
         r_pre = r;
         s_pre = s;
         t_pre = t;
-        
+
         r = r_next;
         s = s_next;
         t = t_next;
@@ -232,12 +231,11 @@ uint32_t good_gcd(uint32_t a, uint32_t b)
 
 int32_t reduce_mod(int32_t x, uint32_t m)
 {
-    x = x % m;
     if (x < 0)
     {
-        x += m;
+        x += ((-x / m) + 1)*m;
     }
-    return x;
+    return x % m;
 }
 
 /**
@@ -289,36 +287,6 @@ RsaKey generateKey()
 int main(){
 
     setup();
-
-    // while(true)
-    // {
-    //     if (Serial.available() > 0)
-    //     {
-    //         // Read from computer input
-    //         char input = Serial.read();
-
-    //         // Encrypt byte
-    //         if (input == '\r' )
-    //         {
-    //             Serial.println();
-    //             uint32_t encryptedR = powmod('\r', e, m);
-    //             uint32_to_serial3(encryptedR);
-    //             uint32_t encryptedN = powmod('\n', e, m);
-    //             uint32_to_serial3(encryptedN);
-    //         } else {
-    //             Serial.print(input);
-    //             uint32_t encrypted = powmod(input, e, m);
-    //             uint32_to_serial3(encrypted);
-    //         }
-    //     }
-
-    //     if (Serial3.available() > 3)
-    //     {
-    //         uint32_t read_input = uint32_from_serial3();
-    //         char decrypted = (char)powmod(read_input, d, n);
-    //         Serial.print(decrypted);
-    //     }
-    // }
 
     Serial.flush();
     Serial3.flush();
