@@ -8,7 +8,7 @@
 #define ARDUINO_MODE_PIN 13
 
 
-typedef RsaKey struct
+struct RsaKey
 {
     uint32_t privateKey;
     uint32_t publicKey;
@@ -52,40 +52,8 @@ uint32_t uint32_from_serial3()
 
 }
 
-/**
-/**
- * Description:
- * Constructs the CR message sent from client
- *
- * Arguments:
- * ckey: the client key
- * cmod: the client mod
- *
- * Returns:
- * a string which consists of "C", followed by ckey, followed by cmod
- */
-uint32_t CR(uint32_t ckey, uint32_t cmod)
-{
-    uint32_t message = "C" + to_string(ckey) + to_string(cmod);
-    return message;
-}
 
-/**
- * Description:
- * Constructs the ACK message sent from server
- *
- * Arguments:
- * skey: the server key
- * smod: the server mod
- *
- * Returns:
- * a string which consists of "A", followed by skey, followed by smod
- */
-uint32_t ACK(uint32_t skey, uint32_t smod)
-{
-    uint32_t message = "A" + to_string(skey) + to_string(smod);
-    return message;
-}
+
 
 /**
  * Description:
@@ -154,7 +122,7 @@ uint32_t powmod(uint32_t base, uint32_t power, uint32_t mod)
 
     while (power > 0)
     {
-        if (power & 1 == 1)
+        if ((power & 1) == 1)
         {
             ans = mulmod(pow_x, ans, mod);
         }
@@ -182,11 +150,11 @@ uint32_t generateNumber(uint8_t k)
     uint32_t num = 0;
     for (uint8_t i = 0; i < k; i++)
     {
-        num |= (analogRead(1) & 1) << i;
-        delay(5);
+        num |= ((uint32_t)(analogRead(1) & 1)) << i;
     }
 
-    num += 1 << k;
+    num += 1ul << k;
+    return num;
 }
 
 /**
@@ -194,7 +162,6 @@ uint32_t generateNumber(uint8_t k)
  */
 bool isPrime(uint32_t num)
 {
-
     if(num % 2 == 0)
     {
         return false;
@@ -216,12 +183,45 @@ bool isPrime(uint32_t num)
  * Find greatest common divisor (GCD) of two numbers
  *
  * Arguments:
- * a, b (unsigned int): Numbers to find GCD of.
+ * a, b (uint32_t): Numbers to find GCD of.
  *
  * Returns:
- * gcd (unsigned int): GCD of a and b
+ * gcd (uint32_t): GCD of a and b
  */
-unsigned int gcd(unsigned int a, unsigned int b)
+uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
+{
+    int32_t s_pre = 0;
+    int32_t s = 0;
+
+    int32_t t_pre = 0;
+    int32_t t = 0;
+
+    int32_t r_pre = 0;
+    int32_t r = 0;
+
+    while(r > 0)
+    {
+        int32_t q = r_pre / r;
+
+        int32_t r_next = r_pre - q * r;
+        int32_t s_next = s_pre - q * s;
+        int32_t t_next = t_pre - q * t;
+
+        r_pre = r;
+        s_pre = s;
+        t_pre = t;
+
+        r = r_next;
+        s = s_next;
+        t = t_next;
+    }
+
+    d = s_pre;
+
+    return a * s_pre + b * t_pre;
+}
+
+uint32_t good_gcd(uint32_t a, uint32_t b)
 {
     while (b > 0)
     {
@@ -233,6 +233,16 @@ unsigned int gcd(unsigned int a, unsigned int b)
     return a;
 }
 
+int32_t reduce_mod(int32_t x, uint32_t m)
+{
+    x = x % m;
+    if (x < 0)
+    {
+        x += m;
+    }
+    return x;
+}
+
 /**
  * Description:
  * Generates RSA encryption keys and modulus
@@ -242,6 +252,8 @@ unsigned int gcd(unsigned int a, unsigned int b)
  */
 RsaKey generateKey()
 {
+    RsaKey key;
+
     uint32_t p;
     do
     {
@@ -254,15 +266,53 @@ RsaKey generateKey()
         q = generateNumber(15);
     } while (!isPrime(q));
 
-    uint32_t n = p*q;
+    key.modulus = p*q;
 
     uint32_t phi_n = (p - 1)*(q - 1);
 
+    int32_t d = 0;
     uint32_t e;
     do
     {
         e = generateNumber(15);
-    } while (!gcd(e, phi_n));
+    } while (gcd(e, phi_n, d) != 1);
+
+    d = reduce_mod(d, phi_n);
+
+    key.publicKey = e;
+    key.privateKey = (uint32_t)d;
+
+    return key;
+}
+/*
+* Description:
+* Client message processing
+*/
+void runClient(RsaKey mykeys, RsaKey theirkeys) {
+    if (Serial.available() > 0){
+       // Read from computer input
+       char input = Serial.read();
+
+       // Encrypt byte
+       if (input == '\r' )
+       {
+           Serial.println();
+           uint32_t encryptedR = powmod('\r', theirkeys.publicKey, theirkeys.modulus);
+           uint32_to_serial3(encryptedR);
+           uint32_t encryptedN = powmod('\n', theirkeys.publicKey, theirkeys.modulus);
+           uint32_to_serial3(encryptedN);
+       } else {
+           Serial.print(input);
+           uint32_t encrypted = powmod(input, theirkeys.publicKey, theirkeys.modulus);
+           uint32_to_serial3(encrypted);
+       }
+       if (Serial3.available() > 3)
+       {
+           uint32_t read_input = uint32_from_serial3();
+           char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
+           Serial.print(decrypted);
+       }
+   }
 }
 
 
@@ -291,68 +341,108 @@ bool wait_on_serial3( uint8_t  nbytes , long  timeout )
  * Main entry point of the program
  */
 int main(){
-
     setup();
+    enum states {start, waitingForKey, waitingForAck, dataExchange};
+    states currentState = start;
+
+    RsaKey myKeys = generateKey();
+    RsaKey theirKeys;
+    bool exchanged = false;
+
 
     if (digitalRead(ARDUINO_MODE_PIN) == LOW) {
-    //client
-    //while recv = false
-        // send CR(ckey, cmod)
-        // send "C"
-        // timeout(1000)
-        // if recv ACK(skey, smod)
-            //server_key = skey;
-            //server_mod = smod;
-            //send ACK (send "A");
-            //recv = true
+
+        while(true) {
+            switch(currentState) {
+                case start:
+                    Serial3.write('C');
+                    uint32_to_serial3(myKeys.publicKey);
+                    uint32_to_serial3(myKeys.modulus);
+                    currentState = waitingForAck;
+                    break;
+
+                case waitingForAck:
+                    if(wait_on_serial3(9, 1000)) {
+                        if((char)Serial3.read() == 'A') {
+                            theirKeys.publicKey = uint32_from_serial3();
+                            theirKeys.modulus = uint32_from_serial3();
+
+                            Serial3.write('A');
+                            exchanged = true;
+                        }
+                    }
+                    if(exchanged) {
+                        currentState = dataExchange;
+                    }
+                    else {
+                        currentState = start;
+                    }
+                    break;
+
+                case dataExchange:
+                    while(true) {
+                        runClient(myKeys, theirKeys);
+                    }
+                    break;
+
+                default:
+                    currentState = start;
+                    break;
+
+            }
+        }
     }
     else {
-    //server
-    //while recv "A" = false
-        //if wait_on_serial3
-            //CR(ckey, cmod)
-            //client_key = ckey;
-            //client_mod = cmod;
-            //send ACK(skey, smod);
+        bool sent = false;
 
-        //if recv "A"
-            //recv ACK = true
+        while(true) {
+            switch(currentState) {
+                case start:
+                    if(wait_on_serial3(1, 1000)) {
+                        if(Serial3.read() == 'C') {
+                            currentState = waitingForKey;
+                        }
+                    }
+                case waitingForKey:
+                    if(wait_on_serial3(8, 1000)) {
+                        theirKeys.publicKey = uint32_from_serial3();
+                        theirKeys.modulus = uint32_from_serial3();
+                    }
+                    if(sent = false) {
+                        Serial3.write('A');
+                        uint32_to_serial3(myKeys.publicKey);
+                        uint32_to_serial3(myKeys.modulus);
+                        currentState = waitingForAck;
+                        sent = true;
+                    }
+                    else {
+                        sent = false;
+                        currentState = start;
+                    }
+                    break;
+                case waitingForAck:
+                if(wait_on_serial3(1, 1000)) {
+                    if(Serial3.read() == 'A') {
+                        currentState = dataExchange;
+                    }
+                    if(Serial3.read() == 'C') {
+                        currentState = waitingForKey;
+                    }
+                    else {
+                        currentState = start;
+                        sent = false;
+                    }
+                    break;
+                default:
+                    sent = false;
+                    currentState = start;
+                    break;
+                }
 
-        //else
-            //timeout(1000)
-
-    }
-
-    while(true)
-    {
-        if (Serial.available() > 0)
-        {
-            // Read from computer input
-            char input = Serial.read();
-
-            // Encrypt byte
-            if (input == '\r' )
-            {
-                Serial.println();
-                uint32_t encryptedR = powmod('\r', e, m);
-                uint32_to_serial3(encryptedR);
-                uint32_t encryptedN = powmod('\n', e, m);
-                uint32_to_serial3(encryptedN);
-            } else {
-                Serial.print(input);
-                uint32_t encrypted = powmod(input, e, m);
-                uint32_to_serial3(encrypted);
             }
         }
 
-        if (Serial3.available() > 3)
-        {
-            uint32_t read_input = uint32_from_serial3();
-            char decrypted = (char)powmod(read_input, d, n);
-            Serial.print(decrypted);
-        }
     }
-
     Serial.flush();
     Serial3.flush();
     return 0;
