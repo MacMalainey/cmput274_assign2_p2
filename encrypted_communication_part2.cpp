@@ -53,6 +53,41 @@ uint32_t uint32_from_serial3()
 }
 
 /**
+/**
+ * Description:
+ * Constructs the CR message sent from client
+ *
+ * Arguments:
+ * ckey: the client key
+ * cmod: the client mod
+ *
+ * Returns:
+ * a string which consists of "C", followed by ckey, followed by cmod
+ */
+uint32_t CR(uint32_t ckey, uint32_t cmod)
+{
+    uint32_t message = "C" + to_string(ckey) + to_string(cmod);
+    return message;
+}
+
+/**
+ * Description:
+ * Constructs the ACK message sent from server
+ *
+ * Arguments:
+ * skey: the server key
+ * smod: the server mod
+ *
+ * Returns:
+ * a string which consists of "A", followed by skey, followed by smod
+ */
+uint32_t ACK(uint32_t skey, uint32_t smod)
+{
+    uint32_t message = "A" + to_string(skey) + to_string(smod);
+    return message;
+}
+
+/**
  * Description:
  * Sets up modules and configures necessary pins
  */
@@ -69,12 +104,12 @@ void setup()
 /**
  * Description:
  * Performs modular multiplication [formula: (a * b) % m] using 32 bit integers
- * 
+ *
  * Parameters:
  * a (uint32_t): multiplicand
  * b (uint32_t): multiplier
  * m (uint32_t): modulus
- * 
+ *
  * Returns:
  * result (uint32_t): result of the modular multiplication
  */
@@ -135,10 +170,10 @@ uint32_t powmod(uint32_t base, uint32_t power, uint32_t mod)
 /**
  * Description:
  * Generates a random k-bit number (up to 32 bits)
- * 
+ *
  * Arguments:
  * k (uint8_t): How many bits the number should be
- * 
+ *
  * Returns:
  * K-bit number (uint32_t): generated k-bit number
  */
@@ -150,12 +185,12 @@ uint32_t generateNumber(uint8_t k)
         num |= (analogRead(1) & 1) << i;
         delay(5);
     }
-    
+
     num += 1 << k;
 }
 
 /**
- * 
+ *
  */
 bool isPrime(uint32_t num)
 {
@@ -179,10 +214,10 @@ bool isPrime(uint32_t num)
 /**
  * Description:
  * Find greatest common divisor (GCD) of two numbers
- * 
+ *
  * Arguments:
  * a, b (unsigned int): Numbers to find GCD of.
- * 
+ *
  * Returns:
  * gcd (unsigned int): GCD of a and b
  */
@@ -201,7 +236,7 @@ unsigned int gcd(unsigned int a, unsigned int b)
 /**
  * Description:
  * Generates RSA encryption keys and modulus
- * 
+ *
  * Returns:
  * RSA info (RsaKey): A struct containing the RSA private and public keys, and modulus
  */
@@ -230,6 +265,27 @@ RsaKey generateKey()
     } while (!gcd(e, phi_n));
 }
 
+
+/*
+* Description:
+* Waits for a certain number of bytes on Serial 3 or timeout
+*
+* Arguments:
+* nbytes: the number of bytes we want
+* timeout: timeout period (ms); specifying a negaitve number turns off timeouts
+*
+* Returns:
+* true if the required number of bytes have arrived
+*/
+bool wait_on_serial3( uint8_t  nbytes , long  timeout )
+{
+    unsigned  long  deadline = millis () + timeout;// wraparound  not a problem
+    while (Serial3.available()<nbytes  && (timeout <0 || millis()<deadline))
+    {
+        delay (1); // be nice , no busy  loop
+    }
+    return  Serial3.available () >=nbytes;
+}
 /**
  * Description:
  * Main entry point of the program
@@ -237,6 +293,35 @@ RsaKey generateKey()
 int main(){
 
     setup();
+
+    if (digitalRead(ARDUINO_MODE_PIN) == LOW) {
+    //client
+    //while recv = false
+        // send CR(ckey, cmod)
+        // send "C"
+        // timeout(1000)
+        // if recv ACK(skey, smod)
+            //server_key = skey;
+            //server_mod = smod;
+            //send ACK (send "A");
+            //recv = true
+    }
+    else {
+    //server
+    //while recv "A" = false
+        //if wait_on_serial3
+            //CR(ckey, cmod)
+            //client_key = ckey;
+            //client_mod = cmod;
+            //send ACK(skey, smod);
+
+        //if recv "A"
+            //recv ACK = true
+
+        //else
+            //timeout(1000)
+
+    }
 
     while(true)
     {
