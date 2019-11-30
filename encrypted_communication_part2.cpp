@@ -345,12 +345,12 @@ int main(){
 
     RsaKey myKeys = generateKey();
     RsaKey theirKeys;
-    bool exchanged;
 
 
     if (digitalRead(ARDUINO_MODE_PIN) == LOW) {
 
         while(true) {
+            bool exchanged;
             switch(currentState) {
                 case start:
                     Serial3.write('C');
@@ -371,7 +371,6 @@ int main(){
                     }
                     if(exchanged) {
                         currentState = dataExchange;
-                        Serial.println("Connection Established");
                     }
                     else {
                         currentState = start;
@@ -419,7 +418,6 @@ int main(){
                 if(wait_on_serial3(1, 1000)) {
                     if(Serial3.read() == 'A') {
                         currentState = dataExchange;
-                        Serial.println("Connection Established");
                     }
                     else if(Serial3.read() == 'C') {
 
