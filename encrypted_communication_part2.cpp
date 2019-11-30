@@ -304,13 +304,13 @@ void dataEx(RsaKey mykeys, RsaKey theirkeys) {
            uint32_t encrypted = powmod(input, theirkeys.publicKey, theirkeys.modulus);
            uint32_to_serial3(encrypted);
        }
-    }
-    if (Serial3.available() > 3)
-    {
-        uint32_t read_input = uint32_from_serial3();
-        char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
-        Serial.print(decrypted);
-    }
+   }
+   if (Serial3.available() > 3)
+   {
+       uint32_t read_input = uint32_from_serial3();
+       char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
+       Serial.print(decrypted);
+   }
 }
 
 
@@ -391,8 +391,10 @@ int main(){
     else {
 
         while(true) {
+            bool sentAck;
             switch(currentState) {
                 case start:
+                    sentAck = false;
                     if(Serial3.available()) {
                         if((char)Serial3.read() == 'C') {
                             currentState = waitingForKey;
@@ -404,7 +406,10 @@ int main(){
                     if(wait_on_serial3(8, 1000)) {
                         theirKeys.publicKey = uint32_from_serial3();
                         theirKeys.modulus = uint32_from_serial3();
-                        Serial3.write('A');
+
+                        if (sentAck == false) {
+                            Serial3.write('A');
+                        }
 
                         uint32_to_serial3(myKeys.publicKey);
                         uint32_to_serial3(myKeys.modulus);
@@ -414,7 +419,7 @@ int main(){
                     }
                     break;
                 case waitingForAck:
-
+                sentAck = true;
                 if(wait_on_serial3(1, 1000)) {
                     if(Serial3.read() == 'A') {
                         currentState = dataExchange;
