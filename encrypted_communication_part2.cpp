@@ -393,16 +393,19 @@ int main(){
         while(true) {
             switch(currentState) {
                 case start:
-                    if(wait_on_serial3(1, 1000)) {
-                        if(Serial3.read() == 'C') {
+                    if(Serial3.available()) {
+                        if((char)Serial3.read() == 'C') {
                             currentState = waitingForKey;
                         }
                     }
+                    break;
                 case waitingForKey:
+
                     if(wait_on_serial3(8, 1000)) {
                         theirKeys.publicKey = uint32_from_serial3();
                         theirKeys.modulus = uint32_from_serial3();
                         Serial3.write('A');
+
                         uint32_to_serial3(myKeys.publicKey);
                         uint32_to_serial3(myKeys.modulus);
                         currentState = waitingForAck;
@@ -411,11 +414,14 @@ int main(){
                     }
                     break;
                 case waitingForAck:
+
                 if(wait_on_serial3(1, 1000)) {
                     if(Serial3.read() == 'A') {
                         currentState = dataExchange;
+                        Serial.println("Connection Established");
                     }
-                    if(Serial3.read() == 'C') {
+                    else if(Serial3.read() == 'C') {
+
                         currentState = waitingForKey;
                     }
                     else {
@@ -424,6 +430,7 @@ int main(){
                     }
                     break;
                 case dataExchange:
+
                     dataEx(myKeys, theirKeys);
                     break;
                 default:
