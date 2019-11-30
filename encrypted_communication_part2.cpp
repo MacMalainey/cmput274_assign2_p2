@@ -304,13 +304,13 @@ void dataEx(RsaKey mykeys, RsaKey theirkeys) {
            uint32_t encrypted = powmod(input, theirkeys.publicKey, theirkeys.modulus);
            uint32_to_serial3(encrypted);
        }
-       if (Serial3.available() > 3)
-       {
-           uint32_t read_input = uint32_from_serial3();
-           char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
-           Serial.print(decrypted);
-       }
-   }
+    }
+    if (Serial3.available() > 3)
+    {
+        uint32_t read_input = uint32_from_serial3();
+        char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
+        Serial.print(decrypted);
+    }
 }
 
 
@@ -371,6 +371,7 @@ int main(){
                     }
                     if(exchanged) {
                         currentState = dataExchange;
+                        Serial.println("Connection Established");
                     }
                     else {
                         currentState = start;
