@@ -286,7 +286,7 @@ RsaKey generateKey()
 * Description:
 * Client message processing
 */
-void runClient(RsaKey mykeys, RsaKey theirkeys) {
+void dataEx(RsaKey mykeys, RsaKey theirkeys) {
     if (Serial.available() > 0){
        // Read from computer input
        char input = Serial.read();
@@ -345,7 +345,7 @@ int main(){
 
     RsaKey myKeys = generateKey();
     RsaKey theirKeys;
-    bool exchanged = false;
+    bool exchanged;
 
 
     if (digitalRead(ARDUINO_MODE_PIN) == LOW) {
@@ -357,8 +357,8 @@ int main(){
                     uint32_to_serial3(myKeys.publicKey);
                     uint32_to_serial3(myKeys.modulus);
                     currentState = waitingForAck;
+                    exchanged = false;
                     break;
-
                 case waitingForAck:
                     if(wait_on_serial3(9, 1000)) {
                         if((char)Serial3.read() == 'A') {
@@ -378,9 +378,7 @@ int main(){
                     break;
 
                 case dataExchange:
-                    while(true) {
-                        runClient(myKeys, theirKeys);
-                    }
+                    dataEx(myKeys, theirKeys);
                     break;
 
                 default:
@@ -391,7 +389,6 @@ int main(){
         }
     }
     else {
-        bool sent = false;
 
         while(true) {
             switch(currentState) {
@@ -405,16 +402,11 @@ int main(){
                     if(wait_on_serial3(8, 1000)) {
                         theirKeys.publicKey = uint32_from_serial3();
                         theirKeys.modulus = uint32_from_serial3();
-                    }
-                    if(sent = false) {
                         Serial3.write('A');
                         uint32_to_serial3(myKeys.publicKey);
                         uint32_to_serial3(myKeys.modulus);
                         currentState = waitingForAck;
-                        sent = true;
-                    }
-                    else {
-                        sent = false;
+                    } else {
                         currentState = start;
                     }
                     break;
@@ -428,11 +420,13 @@ int main(){
                     }
                     else {
                         currentState = start;
-                        sent = false;
+
                     }
                     break;
+                case dataExchange:
+                    dataEx(myKeys, theirKeys);
+                    break;
                 default:
-                    sent = false;
                     currentState = start;
                     break;
                 }
