@@ -284,7 +284,11 @@ RsaKey generateKey()
 }
 /*
 * Description:
-* Client message processing
+* Encrypt and decrypt using generated keys
+*
+* Arguments:
+* mykeys (RsaKey): a set of keys that contains publicKey, privateKey and modulus
+*
 */
 void dataEx(RsaKey mykeys, RsaKey theirkeys) {
     if (Serial.available() > 0){
@@ -345,13 +349,14 @@ int main(){
 
     RsaKey myKeys = generateKey();
     RsaKey theirKeys;
+    bool exchanged;
 
 
     if (digitalRead(ARDUINO_MODE_PIN) == LOW) {
-
+        // client
         while(true) {
-            bool exchanged;
             switch(currentState) {
+                //writes 'C' and sends clients' public key and modulus
                 case start:
                     Serial3.write('C');
                     uint32_to_serial3(myKeys.publicKey);
@@ -359,6 +364,11 @@ int main(){
                     currentState = waitingForAck;
                     exchanged = false;
                     break;
+                /* Waits for acknowledgement by waiting to see if it receives
+                 * 9 bytes and if it receives an 'A'. If it does, it stores
+                 * the keys that are sent over and writes an "A" to send an
+                 * acknowledgement to the server that it has received its keys
+                 */
                 case waitingForAck:
                     if(wait_on_serial3(9, 1000)) {
                         if((char)Serial3.read() == 'A') {
@@ -396,21 +406,23 @@ int main(){
                 case start:
                     sentAck = false;
                     if(Serial3.available()) {
+                        //waits to receive 'C', and if it does, it waits for keys
                         if((char)Serial3.read() == 'C') {
                             currentState = waitingForKey;
                         }
                     }
                     break;
+                // Waits for 8 bytes to be sent over and the stores them in a variable
+                // then an acknowledgement is sent
                 case waitingForKey:
-
                     if(wait_on_serial3(8, 1000)) {
                         theirKeys.publicKey = uint32_from_serial3();
                         theirKeys.modulus = uint32_from_serial3();
-
+                    //if acknowledgement has not been sent, send acknowledgement
                         if (sentAck == false) {
                             Serial3.write('A');
                         }
-
+                    // send keys
                         uint32_to_serial3(myKeys.publicKey);
                         uint32_to_serial3(myKeys.modulus);
                         currentState = waitingForAck;
@@ -418,12 +430,15 @@ int main(){
                         currentState = start;
                     }
                     break;
+                //waiting for 1 byte to be received
                 case waitingForAck:
                 sentAck = true;
                 if(wait_on_serial3(1, 1000)) {
+                    //if received "A", enter data exchange phase
                     if(Serial3.read() == 'A') {
                         currentState = dataExchange;
                     }
+                    //if received "C", enter waiting for key phase
                     else if(Serial3.read() == 'C') {
 
                         currentState = waitingForKey;
