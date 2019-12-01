@@ -1,2 +1,24 @@
-# cmput274_assign2_p2
-Full implementation of RSA encryption communication between two Arduinos for CMPUT 274 
+CMPUT 274 Assignment #2 Part 2
+Mackenzie Malainey - 1570494
+Lora Ma - 1570935
+
+Description:
+ Full implementation of two way RSA encrypted communcation between two arduinos over Serial protocol
+
+Included files:
+ - encrypted_communication_part2.cpp
+ - Makefile
+
+Wiring instructions:
+ -> Note pins on arduino X are denoted as such: PIN (X)
+ -> Two Arduinos are used (denoted A, B)
+ GND (A) -> GND (B)
+ TX3 (A) -> RX3 (B)
+ RX3 (A) -> TX3 (B)
+ PIN 13 (A) -> 560 Ohm Resistor -> 5V (A)
+ PIN 13 (B) -> GND (B)
+
+Notes:
+ - uint32_to_serial, uint32_from_serial, wait_on_serial3, and powmod functions used are
+   slight modifications of the provided functions in assignments and lectures
+

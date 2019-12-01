@@ -7,11 +7,18 @@
 
 #define ARDUINO_MODE_PIN 13
 
-
+/**
+ * Struct that contains all of the RSA encryption information
+ */
 struct RsaKey
 {
+    // Device's RSA Private Key
     uint32_t privateKey;
+
+    // Device's RSA Public Key
     uint32_t publicKey;
+
+    // Device's RSA Modulus
     uint32_t modulus;
 };
 
@@ -50,9 +57,6 @@ uint32_t uint32_from_serial3()
     num = num | ((uint32_t)Serial3.read()) << 24;
     return num ;
 }
-
-
-
 
 /**
  * Description:
@@ -147,7 +151,7 @@ uint32_t powmod(uint32_t base, uint32_t power, uint32_t mod)
 uint32_t generateNumber(uint8_t k)
 {
     uint32_t num = 0;
-    for (uint8_t i = 0; i < k - 1; i++)
+    for (uint8_t i = 0; i < k; i++)
     {
         num |= ((uint32_t)(analogRead(1) & 1)) << i;
     }
@@ -157,7 +161,14 @@ uint32_t generateNumber(uint8_t k)
 }
 
 /**
+ * Description:
+ * Determines if a number is a prime
  *
+ * Arugments:
+ * num (uint32_t): Number to check if it is a prime
+ *
+ * Returns:
+ * primality (bool): True if num is a prime, false otherwise
  */
 bool isPrime(uint32_t num)
 {
@@ -179,16 +190,19 @@ bool isPrime(uint32_t num)
 
 /**
  * Description:
- * Find greatest common divisor (GCD) of two numbers
+ * Find greatest common divisor (GCD) of two numbers using extended euclidean algorithm
  *
  * Arguments:
  * a, b (uint32_t): Numbers to find GCD of.
+ * d (int32_t): Unused
  *
  * Returns:
  * gcd (uint32_t): GCD of a and b
+ * d (int32_t): number where a*d mod b == 1
  */
 uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
 {
+    // Set up initial algorithm state
     int32_t s_pre = 1;
     int32_t s = 0;
 
@@ -198,6 +212,7 @@ uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
     int32_t r_pre = a;
     int32_t r = b;
 
+    // Run algorithm
     while(r > 0)
     {
         int32_t q = r_pre / r;
@@ -220,18 +235,17 @@ uint32_t gcd(uint32_t a, uint32_t b, int32_t& d)
     return a * s_pre + b * t_pre;
 }
 
-uint32_t good_gcd(uint32_t a, uint32_t b)
-{
-    while (b > 0)
-    {
-        a = a % b;
-        unsigned int x = a;
-        a = b;
-        b = x;
-    }
-    return a;
-}
-
+/**
+ * Description:
+ * Reduces a number by a modulus, adjusts if the number is a negative (returns a positive)
+ *
+ * Arguments:
+ * x (int32_t): number to reduce
+ * m (uint32_t): modulues to reduce x by
+ *
+ * Returns:
+ * x mod m (int32_t): x reduced by m as a positive integer
+ */
 int32_t reduce_mod(int32_t x, uint32_t m)
 {
     if (x < 0)
@@ -252,6 +266,7 @@ RsaKey generateKey()
 {
     RsaKey key;
 
+    // First we generate two primes
     uint32_t p;
     do
     {
@@ -266,8 +281,10 @@ RsaKey generateKey()
 
     key.modulus = p*q;
 
+    // Find the totient
     uint32_t phi_n = (p - 1)*(q - 1);
 
+    // Using this we can get e,d (our public and private keys)
     int32_t d = 0;
     uint32_t e;
     do
@@ -282,6 +299,7 @@ RsaKey generateKey()
 
     return key;
 }
+
 /*
 * Description:
 * Encrypt and decrypt using generated keys
@@ -291,26 +309,35 @@ RsaKey generateKey()
 *
 */
 void dataEx(RsaKey mykeys, RsaKey theirkeys) {
+
+    // Read from computer input
     if (Serial.available() > 0){
-       // Read from computer input
        char input = Serial.read();
 
        // Encrypt byte
        if (input == '\r' )
        {
            Serial.println();
+
            uint32_t encryptedR = powmod('\r', theirkeys.publicKey, theirkeys.modulus);
            uint32_to_serial3(encryptedR);
+
            uint32_t encryptedN = powmod('\n', theirkeys.publicKey, theirkeys.modulus);
            uint32_to_serial3(encryptedN);
+
        } else {
+
            Serial.print(input);
+
            uint32_t encrypted = powmod(input, theirkeys.publicKey, theirkeys.modulus);
            uint32_to_serial3(encrypted);
        }
    }
+
+   // Read from other arduino
    if (Serial3.available() > 3)
    {
+       // Decrypt byte
        uint32_t read_input = uint32_from_serial3();
        char decrypted = (char)powmod(read_input, mykeys.privateKey, mykeys.modulus);
        Serial.print(decrypted);
@@ -319,16 +346,17 @@ void dataEx(RsaKey mykeys, RsaKey theirkeys) {
 
 
 /*
-* Description:
-* Waits for a certain number of bytes on Serial 3 or timeout
-*
-* Arguments:
-* nbytes: the number of bytes we want
-* timeout: timeout period (ms); specifying a negaitve number turns off timeouts
-*
-* Returns:
-* true if the required number of bytes have arrived
-*/
+ * Description:
+ * Waits for a certain number of bytes on Serial 3 or timeout
+ * (FUNCTION PROVIDED FROM ASSIGNMENT INFORMATION)
+ *
+ * Arguments:
+ * nbytes: the number of bytes we want
+ * timeout: timeout period (ms); specifying a negaitve number turns off timeouts
+ *
+ * Returns:
+ * true if the required number of bytes have arrived
+ */
 bool wait_on_serial3( uint8_t  nbytes , long  timeout )
 {
     unsigned  long  deadline = millis () + timeout;// wraparound  not a problem
@@ -338,6 +366,7 @@ bool wait_on_serial3( uint8_t  nbytes , long  timeout )
     }
     return  Serial3.available () >=nbytes;
 }
+
 /**
  * Description:
  * Main entry point of the program
@@ -434,13 +463,11 @@ int main(){
                 case waitingForAck:
                 sentAck = true;
                 if(wait_on_serial3(1, 1000)) {
-                    //if received "A", enter data exchange phase
-                    if(Serial3.read() == 'A') {
+                    char signal = Serial3.read();
+                    if(signal == 'A') {
                         currentState = dataExchange;
                     }
-                    //if received "C", enter waiting for key phase
-                    else if(Serial3.read() == 'C') {
-
+                    else if(signal == 'C') {
                         currentState = waitingForKey;
                     }
                     else {
