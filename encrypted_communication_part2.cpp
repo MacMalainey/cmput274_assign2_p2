@@ -463,7 +463,7 @@ int main(){
                 case waitingForAck:
                 sentAck = true;
                 if(wait_on_serial3(1, 1000)) {
-                    char signal = Serial3.read();
+                    char signal = (char)Serial3.read();
                     if(signal == 'A') {
                         currentState = dataExchange;
                     }
